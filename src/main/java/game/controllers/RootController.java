@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 @Controller
 @RequestMapping("/")
-public class RootController extends game.controllers.Controller {
+public class RootController {
 
     @RequestMapping(method = RequestMethod.GET)
     public String swaggerUi() {

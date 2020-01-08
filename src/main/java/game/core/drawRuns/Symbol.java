@@ -1,9 +1,15 @@
 package game.core.drawRuns;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 
+import javax.persistence.*;
+import java.util.List;
+
 @EqualsAndHashCode
+@Table(name = "symbol")
+@Entity
 public class Symbol {
     public static final int AMOUNT_COLUMNS = 4;
     public static final int AMOUNT_ROWS = 4;
@@ -14,18 +20,25 @@ public class Symbol {
             {false, false, false, false}
     });
 
+    @Column(name = "id")
+    @Id
     private boolean[][] appearance;
+
+    @ManyToMany(fetch = FetchType.LAZY, mappedBy = "symbols")
+    @JsonIgnore
+    private List<Box> boxes;
 
     public Symbol(@NonNull boolean[][] appearance) {
         if (appearance.length != AMOUNT_ROWS || appearance[0].length != AMOUNT_COLUMNS)
             throw new IllegalArgumentException("input massive is not correct");
+
         this.appearance = appearance;
     }
 
     public Symbol() {
     }
 
-    public static boolean isSymbolCorrect(Symbol symbol, Symbol[] correctSymbols) {
+    public static boolean isSymbolCorrect(Symbol symbol, List<Symbol> correctSymbols) {
 
         for (Symbol i : correctSymbols) {
 

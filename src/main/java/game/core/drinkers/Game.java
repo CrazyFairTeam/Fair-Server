@@ -17,6 +17,7 @@ public class Game {
         this.npc = new Player("NPC");
     }
 
+
     public String whoIsWinner() {
         winner = chooseWinner();
         return winner;

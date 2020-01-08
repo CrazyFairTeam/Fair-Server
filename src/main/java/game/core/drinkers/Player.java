@@ -16,6 +16,9 @@ public class Player {
         this.alcohol = 0;
     }
 
+    public Player() {
+    }
+
     public void setPassed(boolean passed) {
         this.passed = passed;
     }

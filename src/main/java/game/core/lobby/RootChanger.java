@@ -1,124 +1,126 @@
 package game.core.lobby;
 
-import game.core.ObjectsWrapper;
-import game.core.dataBase.*;
-import game.utility.Utilities;
+import game.core.dataBase.entities.*;
+import game.core.dataBase.repositories.DayRepository;
+import game.core.dataBase.services.CrudGameStateService;
 import lombok.NonNull;
 
-public class RootChanger {
-    private MapDb mapBase;
+import java.util.List;
 
-    public RootChanger(@NonNull MapDb mapBase) {
-        this.mapBase = mapBase;
+public class RootChanger {
+
+    private CrudGameStateService crudService;
+    private DayRepository dayRepository;
+
+    public RootChanger(@NonNull CrudGameStateService crudService, @NonNull DayRepository dayRepository) {
+        this.crudService = crudService;
+        this.dayRepository = dayRepository;
     }
 
-    public static int getRelevantRootNumber(GameRoot[] root, MapDb mapBase) {
-        int order = (int) mapBase.get(GameCounterState.class).get();
-        mapBase.replace(GameCounterState.class, new GameCounterState(order + 1));
+    public RootChanger() {
+    }
 
-        if (order == root.length) {
+    public static int getRelevantRootNumber(List<GameRoot> root, CrudGameStateService crudService) {
+        int order = (int) crudService.get(GameCounterState.class).get();
+        crudService.upsert(new GameCounterState(order + 1));
 
-            int day = (int) mapBase.get(DayCounterState.class).get();
-            mapBase.replace(DayCounterState.class, new DayCounterState(day + 1));
+        if (order == root.size()) {
 
-            mapBase.replace(IsStolenApplesState.class, new IsStolenApplesState(false));
-            mapBase.replace(HasMoneyState.class, new HasMoneyState(false));
+            int day = (int) crudService.get(DayCounterState.class).get();
+            crudService.upsert(new DayCounterState(day + 1));
 
+            crudService.upsert(new IsStolenApplesState(false));
+            crudService.upsert(new HasMoneyState(false));
             order = 0;
-            mapBase.replace(GameCounterState.class, new GameCounterState(order + 1));
+
+            crudService.upsert(new GameCounterState(order + 1));
         }
 
         return order;
     }
 
-    public GameRoot[] changeRoot(GameRoot[] root, int order) {
+    public List<GameRoot> changeRoot(List<GameRoot> root, int order) {
 
-        if ((int) mapBase.get(DayCounterState.class).get() == 1) {
+        if ((int) crudService.get(DayCounterState.class).get() == 1) {
 
-            if (root[order].getGame() == GameRoot.Games.DRAW_RUNS)
+            if (root.get(order).getGame() == GameRoot.Games.DRAW_RUNS)
                 root = getRelRootAtDrawRuns(root);
 
-            else if (root[order].getGame() == GameRoot.Games.DRINKERS)
+            else if (root.get(order).getGame() == GameRoot.Games.DRINKERS)
                 root = getRelRootAtDrinkers(root);
 
-        } else if ((int) mapBase.get(DayCounterState.class).get() == 2) {
+        } else if ((int) crudService.get(DayCounterState.class).get() == 2) {
 
-            if (root[order].getGame() == GameRoot.Games.APPLE_THEFT)
+            if (root.get(order).getGame() == GameRoot.Games.APPLE_THEFT)
                 root = getRelRootAtSecDayFirGame(root);
 
 
-            else if (root[order].getGame() == GameRoot.Games.DRAW_RUNS)
+            else if (root.get(order).getGame() == GameRoot.Games.DRAW_RUNS)
                 root = getRelRootAtSecDayDrinkers(root);
 
-            else if (root[order].getGame() == GameRoot.Games.DRINKERS)
+            else if (root.get(order).getGame() == GameRoot.Games.DRINKERS)
                 root = getRelRootAtDayConsequence(root);
-        } else if ((Integer) mapBase.get(DayCounterState.class).get() == 3) {
+
+        } else if ((Integer) crudService.get(DayCounterState.class).get() == 3) {
             root = getRelRootAtThirdDay(root);
         }
 
         return root;
     }
 
-    private GameRoot[] getRelRootAtSecDayFirGame(GameRoot[] root) {
+    private List<GameRoot> getRelRootAtSecDayFirGame(List<GameRoot> root) {
 
-        if ((Boolean) mapBase.get(IsDrunkState.class).get()) {
-            GameRoot[] newGameRoot = (GameRoot[]) Utilities.getBean("secondDaySecondRoot").getObjects();
-            mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(newGameRoot)));
+        if ((Boolean) crudService.get(IsDrunkState.class).get()) {
+            List<GameRoot> newGameRoot = dayRepository.findById("secondDaySecondRoot").get().getRoots();
             root = newGameRoot;
         } else {
-            GameRoot[] newGameRoot = (GameRoot[]) Utilities.getBean("secondDayFirstRoot").getObjects();
-            mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(newGameRoot)));
+            List<GameRoot> newGameRoot = dayRepository.findById("secondDayFirstRoot").get().getRoots();
             root = newGameRoot;
         }
 
         return root;
     }
 
-    private GameRoot[] getRelRootAtDrawRuns(GameRoot[] root) {
+    private List<GameRoot> getRelRootAtDrawRuns(List<GameRoot> root) {
 
-        if ((boolean) mapBase.get(HasMoneyState.class).get()) {
-            GameRoot[] newGameRoot = (GameRoot[]) Utilities.getBean("firstDaySecondRoot").getObjects();
-            mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(newGameRoot)));
+        if ((boolean) crudService.get(HasMoneyState.class).get()) {
+            List<GameRoot> newGameRoot = dayRepository.findById("firstDaySecondRoot").get().getRoots();
             root = newGameRoot;
         }
 
         return root;
     }
 
-    private GameRoot[] getRelRootAtDrinkers(GameRoot[] root) {
+    private List<GameRoot> getRelRootAtDrinkers(List<GameRoot> root) {
 
-        if (!(boolean) mapBase.get(HasMoneyState.class).get()) {
-            GameRoot[] newGameRoot = (GameRoot[]) Utilities.getBean("firstDayThirdRoot").getObjects();
-            mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(newGameRoot)));
-            mapBase.replace(IsDrunkState.class, new IsDrunkState(false));
+        if (!(boolean) crudService.get(HasMoneyState.class).get()) {
+            List<GameRoot> newGameRoot = dayRepository.findById("firstDayThirdRoot").get().getRoots();
+            crudService.upsert(new IsDrunkState(false));
             root = newGameRoot;
         }
         return root;
     }
 
-    private GameRoot[] getRelRootAtSecDayDrinkers(GameRoot[] root) {
+    private List<GameRoot> getRelRootAtSecDayDrinkers(List<GameRoot> root) {
 
-        if ((boolean) mapBase.get(HasMoneyState.class).get()) {
-            GameRoot[] newGameRoot = (GameRoot[]) Utilities.getBean("secondDaySixthRoot").getObjects();
-            mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(newGameRoot)));
+        if ((boolean) crudService.get(HasMoneyState.class).get()) {
+            List<GameRoot> newGameRoot = dayRepository.findById("secondDaySixthRoot").get().getRoots();
             root = newGameRoot;
         }
         return root;
     }
 
-    private GameRoot[] getRelRootAtDayConsequence(GameRoot[] root) {
-        if (!(boolean) mapBase.get(HasMoneyState.class).get()) {
-            GameRoot[] newGameRoot = (GameRoot[]) Utilities.getBean("secondDayFifthRoot").getObjects();
-            mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(newGameRoot)));
-            mapBase.replace(IsDrunkState.class, new IsDrunkState(false));
+    private List<GameRoot> getRelRootAtDayConsequence(List<GameRoot> root) {
+        if (!(boolean) crudService.get(HasMoneyState.class).get()) {
+            List<GameRoot> newGameRoot = dayRepository.findById("secondDayFifthRoot").get().getRoots();
+            crudService.upsert(new IsDrunkState(false));
             root = newGameRoot;
         }
         return root;
     }
 
-    private GameRoot[] getRelRootAtThirdDay(GameRoot[] root) {
-        root = (GameRoot[]) Utilities.getBean("thirdDay").getObjects();
-        mapBase.replace(CurrentRootState.class, new CurrentRootState(new ObjectsWrapper<>(root)));
+    private List<GameRoot> getRelRootAtThirdDay(List<GameRoot> root) {
+        root = dayRepository.findById("thirdDay").get().getRoots();
         return root;
     }
 }

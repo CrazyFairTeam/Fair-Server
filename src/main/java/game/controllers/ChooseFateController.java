@@ -3,12 +3,14 @@ package game.controllers;
 import game.core.chooseFate.History;
 import game.core.chooseFate.HitApple;
 import game.core.chooseFate.Litigation;
-import game.core.dataBase.ConsequenceState;
-import game.core.dataBase.DayCounterState;
-import game.core.dataBase.HasMoneyState;
-import game.core.dataBase.IsStolenApplesState;
-import game.utility.Utilities;
+import game.core.dataBase.entities.ConsequenceState;
+import game.core.dataBase.entities.DayCounterState;
+import game.core.dataBase.entities.HasMoneyState;
+import game.core.dataBase.entities.IsStolenApplesState;
+import game.core.dataBase.repositories.HistoryRepository;
+import game.core.dataBase.services.CrudGameStateService;
 import io.swagger.annotations.Api;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,30 +20,33 @@ import java.util.Random;
 @RestController
 @RequestMapping("/gameCommands")
 @Api(value = "gameCommands", description = "list of mini-game commands")
-public class ChooseFateController extends Controller {
+public class ChooseFateController {
+    @Autowired
+    CrudGameStateService service;
+    @Autowired
+    HistoryRepository historyRepository;
+
     private History history;
 
     @RequestMapping(method = RequestMethod.GET, value = "/getLigation")
     public Litigation getLigation() {
-        Object[] allHistories = Utilities.getBean("histories").getObjects();
-        int dayNumber = (Integer) mapBase.get(DayCounterState.class).get() - 1;
-
-        history = (History) allHistories[dayNumber];
+        int dayNumber = (Integer) service.get(DayCounterState.class).get();
+        history = historyRepository.findById(dayNumber).get();
 
         return history.getLitigation();
     }
 
     @RequestMapping(method = RequestMethod.POST, value = "/forgivePrisoner")
     public void forgivePrisoner() {
-        mapBase.replace(ConsequenceState.class, new ConsequenceState(history.getNegSequence()));
+        service.upsert(new ConsequenceState(history.getNegSequence()));
 
         if (isPrisonerDonated())
-            mapBase.replace(HasMoneyState.class, new HasMoneyState(true));
+            service.upsert(new HasMoneyState(true));
     }
 
     @RequestMapping(method = RequestMethod.GET, value = "/hasApple")
     public boolean hasApple() {
-        boolean hasApple = (boolean) mapBase.get(IsStolenApplesState.class).get();
+        boolean hasApple = (boolean) service.get(IsStolenApplesState.class).get();
 
         return hasApple;
     }
@@ -50,9 +55,9 @@ public class ChooseFateController extends Controller {
     public void checkHit(double x, double y) {
 
         if (HitApple.isHited(x, y)) {
-            mapBase.replace(ConsequenceState.class, new ConsequenceState(history.getPosSequence()));
+            service.upsert(new ConsequenceState(history.getPosSequence()));
         } else {
-            mapBase.replace(ConsequenceState.class, new ConsequenceState(history.getNegSequence()));
+            service.upsert(new ConsequenceState(history.getNegSequence()));
         }
     }
 
